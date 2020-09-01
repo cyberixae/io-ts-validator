@@ -140,9 +140,6 @@ export class Validator<E, A, O = A, SO = O, I = unknown, SI = I> implements _Val
     return x;
   }
 }
-const _validator = <E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Settings<E, O, SO, I, SI>): Validator<E, A, O, SO, I, SI> => {
-  return new Validator(codec, settings);
-}
 
 const identity = <I>(i: I) => i; 
 
@@ -178,31 +175,44 @@ const presets = <A, O, I>(codec: Codec<A, O, I>): Presets<O, I> => ({
   json: json(codec),
 })
 
-type Pres<O,I,P extends Preset> = Presets<O,I>[P]
-const pres = <A, O,I,P extends Preset>(codec: Codec<A, O, I>, p: P): Presets<O,I>[P] => presets(codec)[p]
 
-type Custom<E,O,SO,I,SI> = (p: Presets<O, I>) => Settings<E, O, SO, I, SI>
+type Select<O,I,P extends Preset> = Presets<O,I>[P]
 
-function setti<E, A, O, SO, I, SI, P extends Preset>(settings: undefined):                     (codec: Codec<A, O, I>) => Settings<E, O, SO, I, SI>;
-function setti<E, A, O, SO, I, SI, P extends Preset>(settings: Custom<E,O,SO,I,SI>):           (codec: Codec<A, O, I>) => Settings<E, O, SO, I, SI>;
-function setti<E, A, O, SO, I, SI, P extends Preset>(settings: undefined|Custom<E,O,SO,I,SI>): (codec: Codec<A, O, I>) => Settings<E, O, SO, I, SI> {
-  /*
-  const omg = presets(codec)
-  if (typeof settings === 'undefined') {
-    const bob: Custom<E,O,SO,I,SI> = ({raw}: Presets<O, I>) => raw
-    const setti = bob(omg) 
-    return _validator(codec, setti);
+const select = <E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, p: P): Select<O, I, P> => presets(codec)[p]
 
-  }
-    const setti = settings(omg)
-    return _validator(codec, setti);
-  */
-  return null as any
+type Customizer<E,O,SO,I,SI> = (p: Presets<O, I>) => Settings<E, O, SO, I, SI>
+
+
+function fromSettings<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
+  return new Validator(codec, settings);
+}
+function fromCustomizer<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
+    return fromSettings(codec, settings(presets(codec)));
+}
+function fromDefaults<A, O, I>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I> {
+    const settings = select<Errors, A, O, O, I, I, 'raw'>(codec, 'raw')
+    return fromSettings(codec, settings);
+}
+function fromPresetJson<A, O, I, P extends Preset>(codec: Codec<A, O, I>, preset: P): Validator<Errors, A, O, Jsontext, I, Jsontext> {
+    const settings = select<Errors, A, O, Jsontext, I, Jsontext, 'json'>(codec, 'json')
+    return fromSettings(codec, settings);
 }
 
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Custom<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings?: Custom<E,O,SO,I,SI>) {
-  const njoo = setti(settings)(codec);
-  return _validator(codec, njoo);
+export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
+export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
+export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: 'json'): Validator<Errors, A, O, Jsontext, I, Jsontext>;
+export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings?: Customizer<E,O,SO,I,SI>|Settings<E,O,SO,I,SI>|P) {
+  switch (typeof settings) {
+    case 'undefined':
+      return fromDefaults(codec);
+    case 'object':
+      return fromSettings(codec, settings);
+    case 'function':
+      return fromCustomizer(codec, settings);
+  }
+  if (settings === 'json') {
+    const ettings = select<Errors, A, O, SO, I, SI, 'json'>(codec, 'json')
+    return fromSettings(codec, ettings);
+  }
 }
