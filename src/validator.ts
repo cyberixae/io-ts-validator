@@ -1,5 +1,6 @@
 import * as t from 'io-ts';
 import * as PathReporter_ from 'io-ts/lib/PathReporter';
+import { Reader } from 'fp-ts/lib/Reader';
 import { Either } from 'fp-ts/lib/Either';
 import * as Either_ from 'fp-ts/lib/Either';
 import { pipe } from 'fp-ts/lib/pipeable';
@@ -183,11 +184,12 @@ const select = <E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, p: 
 type Customizer<E,O,SO,I,SI> = (p: Presets<O, I>) => Settings<E, O, SO, I, SI>
 
 
+
 function fromSettings<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
   return new Validator(codec, settings);
 }
-function fromCustomizer<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
-    return fromSettings(codec, settings(presets(codec)));
+function fromCustomizer<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, customizer: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
+      return fromSettings(codec, customizer(presets(codec)));
 }
 function fromDefaults<A, O, I>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I> {
     const settings = select<Errors, A, O, O, I, I, 'raw'>(codec, 'raw')
@@ -212,7 +214,6 @@ export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, 
       return fromCustomizer(codec, settings);
   }
   if (settings === 'json') {
-    const ettings = select<Errors, A, O, SO, I, SI, 'json'>(codec, 'json')
-    return fromSettings(codec, ettings);
+     return fromPresetJson(codec, settings)
   }
 }
