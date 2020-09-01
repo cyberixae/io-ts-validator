@@ -179,41 +179,60 @@ const presets = <A, O, I>(codec: Codec<A, O, I>): Presets<O, I> => ({
 
 type Select<O,I,P extends Preset> = Presets<O,I>[P]
 
-const select = <E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, p: P): Select<O, I, P> => presets(codec)[p]
+const select = <E, A, O, SO, I, SI, P extends Preset>(p: P): Reader<Codec<A, O, I>, Select<O, I, P>> => (codec) => presets(codec)[p]
 
 type Customizer<E,O,SO,I,SI> = (p: Presets<O, I>) => Settings<E, O, SO, I, SI>
 
 
 
-function fromSettings<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
-  return new Validator(codec, settings);
+function fromSettings<E, A, O, SO, I, SI>(settings: Settings<E,O,SO,I,SI>): Reader<Codec<A, O, I>, Validator<E, A, O, SO, I, SI>> {
+  return (codec: Codec<A, O, I>) => new Validator(codec, settings);
 }
-function fromCustomizer<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, customizer: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI> {
-      return fromSettings(codec, customizer(presets(codec)));
+function fromCustomizer<E, A, O, SO, I, SI>(customizer: Customizer<E,O,SO,I,SI>): Reader<Codec<A, O, I>, Validator<E, A, O, SO, I, SI>> {
+  return (codec: Codec<A, O, I>) => pipe(
+    codec,
+    fromSettings(customizer(presets(codec)))
+  );
 }
-function fromDefaults<A, O, I>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I> {
-    const settings = select<Errors, A, O, O, I, I, 'raw'>(codec, 'raw')
-    return fromSettings(codec, settings);
+function fromDefaults<A, O, I>(): Reader<Codec<A, O, I>, Validator<Errors, A, O, O, I, I>> {
+  return (codec: Codec<A, O, I>) => pipe(
+    codec,
+    fromSettings(select<Errors, A, O, O, I, I, 'raw'>('raw')(codec)),
+  );
 }
-function fromPresetJson<A, O, I, P extends Preset>(codec: Codec<A, O, I>, preset: P): Validator<Errors, A, O, Jsontext, I, Jsontext> {
-    const settings = select<Errors, A, O, Jsontext, I, Jsontext, 'json'>(codec, 'json')
-    return fromSettings(codec, settings);
+function fromPresetJson<A, O, I, P extends Preset>(preset: P): Reader<Codec<A, O, I>, Validator<Errors, A, O, Jsontext, I, Jsontext>> {
+  return (codec: Codec<A, O, I>) => pipe(
+    codec,
+    fromSettings(select<Errors, A, O, O, I, I, 'json'>('json')(codec)),
+  );
 }
 
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I>;
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: 'json'): Validator<Errors, A, O, Jsontext, I, Jsontext>;
+export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: 'raw'): Validator<Errors, A, O, SO, I, SI>;
 export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings?: Customizer<E,O,SO,I,SI>|Settings<E,O,SO,I,SI>|P) {
-  switch (typeof settings) {
-    case 'undefined':
-      return fromDefaults(codec);
-    case 'object':
-      return fromSettings(codec, settings);
-    case 'function':
-      return fromCustomizer(codec, settings);
+  if (typeof settings === 'object') {
+    return pipe(
+      codec,
+      fromSettings(settings)
+    )
+  }
+  if (typeof settings === 'function') {
+    return pipe(
+      codec,
+      fromCustomizer(settings)
+    );
   }
   if (settings === 'json') {
-     return fromPresetJson(codec, settings)
+     return pipe(
+       codec,
+       fromPresetJson(settings)
+     );
   }
+  return pipe(
+    codec,
+    fromDefaults(),
+  );
 }
