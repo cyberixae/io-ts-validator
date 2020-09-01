@@ -147,7 +147,7 @@ const identity = <I>(i: I) => i;
 export type Errors = Array<string>
 export type Jsontext = string
 
-export type Preset = 'raw'|'json'
+export type Preset = 'raw'|'json';
 
 export const raw = <A, O, I>(codec: Codec<A, O, I>): Settings<Errors, O, O, I, I> => ({
   Promise,
@@ -207,12 +207,12 @@ function fromPresetJson<A, O, I>(_preset: 'json'): Reader<Codec<A, O, I>, Valida
   );
 }
 
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: 'json'): Validator<Errors, A, O, Jsontext, I, Jsontext>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings: 'raw'): Validator<Errors, A, O, SO, I, SI>;
-export function validator<E, A, O, SO, I, SI, P extends Preset>(codec: Codec<A, O, I>, settings?: Customizer<E,O,SO,I,SI>|Settings<E,O,SO,I,SI>|P) {
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>): Validator<Errors, A, O, O, I, I>;
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: 'raw'): Validator<Errors, A, O, SO, I, SI>;
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: 'json'): Validator<Errors, A, O, Jsontext, I, Jsontext>;
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Settings<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings: Customizer<E,O,SO,I,SI>): Validator<E, A, O, SO, I, SI>;
+export function validator<E, A, O, SO, I, SI>(codec: Codec<A, O, I>, settings?: Preset|Settings<E,O,SO,I,SI>|Customizer<E,O,SO,I,SI>) {
   if (typeof settings === 'object') {
     return pipe(
       codec,
