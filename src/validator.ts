@@ -162,13 +162,20 @@ export const json = <A, O, I>(codec: Codec<A, O, I>): Settings<Errors, O, Jsonte
   Promise,
   mapError: PathReporter_.failure,
   parser: {
-    serialize: (o: O): string => {
-      const candidate = JSON.stringify(o);
-      // parse to make sure candidate is welformed
-      JSON.parse(candidate);
-      return candidate;
-    },
-    deserialize: (s: string): I => JSON.parse(s),
+    serialize: (o: O): Jsontext => pipe(
+      Either_.stringifyJSON(o, () => new Error('Failed to stringify as JSON')),
+      Either_.fold(
+        (error): Jsontext => { throw error },
+        (so: string): Jsontext => so,
+      ),
+    ),
+    deserialize: (si: Jsontext): I => pipe(
+      Either_.parseJSON(si, () => new Error('Failed to parse as JSON')),
+      Either_.fold(
+        (error): I => { throw error },
+        (i: Either_.Json): I => i as unknown as I,
+      ),
+    ),
   }
 })
 
